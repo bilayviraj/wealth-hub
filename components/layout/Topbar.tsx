@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { Bell } from 'lucide-react'
+import { Bell, Menu } from 'lucide-react'
 import styles from './Topbar.module.css'
 
 const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
@@ -15,7 +15,11 @@ const PAGE_TITLES: Record<string, { title: string; subtitle: string }> = {
   '/calculators/personal-loan': { title: 'Personal Loan Calculator', subtitle: 'Plan your personal loan' },
 }
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void
+}
+
+export default function Topbar({ onMenuClick }: TopbarProps) {
   const pathname = usePathname()
   const pageInfo = PAGE_TITLES[pathname] ?? { title: 'WealthHub', subtitle: '' }
   const today = new Date().toLocaleDateString('en-IN', {
@@ -25,10 +29,17 @@ export default function Topbar() {
   return (
     <header className={styles.topbar}>
       <div className={styles.left}>
-        <h1 className={styles.title}>{pageInfo.title}</h1>
-        {pageInfo.subtitle && (
-          <p className={styles.subtitle}>{pageInfo.subtitle}</p>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button className={styles.menuBtn} onClick={onMenuClick} title="Open navigation" id="topbar-menu-btn">
+            <Menu size={20} />
+          </button>
+          <div>
+            <h1 className={styles.title}>{pageInfo.title}</h1>
+            {pageInfo.subtitle && (
+              <p className={styles.subtitle}>{pageInfo.subtitle}</p>
+            )}
+          </div>
+        </div>
       </div>
 
       <div className={styles.right}>

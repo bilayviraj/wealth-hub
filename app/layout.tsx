@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
-import Sidebar from '@/components/layout/Sidebar'
-import Topbar from '@/components/layout/Topbar'
+import AppShell from '@/components/layout/AppShell'
 import { Toaster } from 'react-hot-toast'
 
 export const metadata: Metadata = {
@@ -19,17 +18,11 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>
-        <div className="app-shell">
-          <Sidebar />
-          <div className="main-content" id="main-content">
-            <Topbar />
-            <main className="page-container animate-fadeIn">
-              {children}
-            </main>
-          </div>
-        </div>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <AppShell>
+          {children}
+        </AppShell>
         <Toaster
           position="top-right"
           toastOptions={{

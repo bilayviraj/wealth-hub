@@ -2,7 +2,8 @@
   position: fixed;
   top: 0;
   left: 0;
-  height: 100vh;
+  bottom: 0;
+  height: 100dvh;
   width: var(--sidebar-width);
   background: var(--bg-surface);
   border-right: 1px solid var(--border-subtle);

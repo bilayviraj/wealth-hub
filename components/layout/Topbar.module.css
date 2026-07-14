@@ -82,12 +82,34 @@
   box-shadow: 0 0 0 2px var(--color-primary-glow);
 }
 
+.menuBtn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--border-radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.menuBtn:hover {
+  background: var(--glass-bg);
+}
+
 @media (max-width: 768px) {
   .topbar {
     left: 0;
+    padding: 0 1rem;
   }
 
   .date {
     display: none;
+  }
+
+  .menuBtn {
+    display: flex;
   }
 }

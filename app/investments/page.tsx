@@ -46,6 +46,14 @@ export default function InvestmentsPage() {
   const [loading, setLoading]     = useState(true)
   const [addOpen, setAddOpen]     = useState(false)
   const [editItem, setEditItem]   = useState<InvestmentEntry | null>(null)
+  const [isMobile, setIsMobile]   = useState(false)
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   const [sipOpen, setSipOpen]     = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [filterOwner, setFilterOwner]     = useState<string>('all')
@@ -199,7 +207,7 @@ export default function InvestmentsPage() {
         : <span className="text-muted">—</span>,
     },
     {
-      headerName: '', width: 90, sortable: false, filter: false, pinned: 'right',
+      headerName: '', width: 90, sortable: false, filter: false, pinned: isMobile ? undefined : 'right',
       cellRenderer: (p: any) => (
         <div style={{ display: 'flex', gap: 2, alignItems: 'center', height: '100%' }}>
           <button className="btn btn-ghost btn-icon btn-sm" onClick={() => { setEditItem(p.data); setAddOpen(true) }} title="Edit">
@@ -212,6 +220,15 @@ export default function InvestmentsPage() {
       ),
     },
   ]
+
+  if (loading) {
+    return (
+      <div className="loader-container">
+        <div className="spinner" />
+        <span className="loader-text">Loading portfolio data...</span>
+      </div>
+    )
+  }
 
   return (
     <div>

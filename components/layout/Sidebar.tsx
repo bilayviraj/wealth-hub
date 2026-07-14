@@ -22,12 +22,17 @@ const NAV_ITEMS = [
   { href: '/calculators', icon: Calculator, label: 'Calculators' },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean
+  setMobileOpen?: (open: boolean) => void
+}
+
+export default function Sidebar({ mobileOpen = false, setMobileOpen }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''}`}>
+    <aside className={`${styles.sidebar} ${collapsed ? styles.collapsed : ''} ${mobileOpen ? styles.mobileOpen : ''}`}>
       {/* Logo */}
       <div className={styles.logo}>
         <div className={styles.logoIcon}>
@@ -51,6 +56,7 @@ export default function Sidebar() {
               href={href}
               className={`${styles.navItem} ${isActive ? styles.active : ''}`}
               title={collapsed ? label : undefined}
+              onClick={() => setMobileOpen?.(false)}
             >
               <span className={styles.navIcon}>
                 <Icon size={18} />
