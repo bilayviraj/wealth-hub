@@ -220,7 +220,7 @@ export default function GoalsPage() {
           <p>Set financial goals to start planning your budget</p>
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
           {goals.map(goal => {
             const progress = goalProgress(goal.currentAmount, goal.targetAmount)
             const mSavings = monthlySavingsNeeded(goal.targetAmount, goal.currentAmount, new Date(goal.targetDate))

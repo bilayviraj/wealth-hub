@@ -40,7 +40,7 @@ export default function CalculatorsPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
         {CALCULATORS.map(({ href, icon: Icon, title, description, accent, id }) => (
           <Link href={href} key={href} id={id} style={{ textDecoration: 'none' }}>
             <div className="card" style={{ cursor: 'pointer', transition: 'all var(--transition-fast)', borderColor: 'var(--glass-border)', height: '100%' }}

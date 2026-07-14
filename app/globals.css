@@ -208,15 +208,15 @@ a {
     width: 100%;
   }
 
-  /* Force stat cards in 1 row on mobile screens */
+  /* Force stat cards in 2 columns on mobile screens */
   .stats-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
-    gap: 0.5rem !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0.625rem !important;
     margin-bottom: 1.25rem !important;
   }
 
   .stat-card {
-    padding: 0.75rem !important;
+    padding: 0.875rem !important;
     border-radius: var(--border-radius-md) !important;
   }
 
@@ -225,7 +225,7 @@ a {
   }
 
   .stat-card__label {
-    font-size: 0.6875rem !important;
+    font-size: 0.75rem !important;
     margin-bottom: 0.25rem !important;
     white-space: nowrap;
     overflow: hidden;
@@ -233,14 +233,22 @@ a {
   }
 
   .stat-card__value {
-    font-size: 1.125rem !important;
+    font-size: 1.375rem !important;
     letter-spacing: -0.01em !important;
   }
 
   .stat-card__sub {
-    font-size: 0.6875rem !important;
+    font-size: 0.75rem !important;
     margin-top: 0.25rem !important;
   }
+
+  .mobile-only-legend {
+    display: flex !important;
+  }
+}
+
+.mobile-only-legend {
+  display: none !important;
 }
 
 /* ─── Cards ──────────────────────────────────────────────────────────────────── */

@@ -278,51 +278,31 @@ export default function InvestmentsPage() {
           <div className="card-header"><span className="card-title">Portfolio Allocation</span></div>
           {byType.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart margin={{ top: 15, bottom: 15, left: 20, right: 20 }}>
+              <ResponsiveContainer width="100%" height={240}>
+                <PieChart>
                   <Pie
                     data={byType}
                     cx="50%"
                     cy="50%"
-                    innerRadius={80}
-                    outerRadius={110}
+                    innerRadius={60}
+                    outerRadius={95}
                     paddingAngle={3}
                     dataKey="value"
-                    labelLine={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1 }}
-                    label={(props) => {
-                      const { cx, cy, midAngle, outerRadius, percent, name } = props
-                      if (
-                        percent === undefined ||
-                        percent < 0.02 ||
-                        midAngle === undefined ||
-                        outerRadius === undefined ||
-                        cx === undefined ||
-                        cy === undefined
-                      ) return null
-                      const RADIAN = Math.PI / 180
-                      const radius = outerRadius + 14
-                      const x = cx + radius * Math.cos(-midAngle * RADIAN)
-                      const y = cy + radius * Math.sin(-midAngle * RADIAN)
-                      return (
-                        <text
-                          x={x}
-                          y={y}
-                          fill="var(--color-text)"
-                          textAnchor={x > cx ? 'start' : 'end'}
-                          dominantBaseline="central"
-                          fontSize={12}
-                          fontWeight={600}
-                        >
-                          {`${name} ${(percent * 100).toFixed(0)}%`}
-                        </text>
-                      )
-                    }}
                   >
                     {byType.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
                   </Pie>
                   <Tooltip formatter={(v: any) => formatCurrency(v as number)} contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 8, color: 'var(--color-text)', fontSize: '0.8rem' }} />
                 </PieChart>
               </ResponsiveContainer>
+              {/* Legend */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
+                {byType.map(item => (
+                  <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, display: 'inline-block' }} />
+                    {item.name}: {formatCurrency(item.value, true)}
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="empty-state" style={{ padding: '2rem' }}><p>No data</p></div>
@@ -331,7 +311,7 @@ export default function InvestmentsPage() {
       </div>
 
       {/* Grouping Lists Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
         {/* Current Year Investments by Type */}
         <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column' }}>
           <div className="card-header" style={{ marginBottom: '0.5rem' }}>

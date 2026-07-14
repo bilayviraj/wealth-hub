@@ -154,24 +154,68 @@ export default function DashboardPage() {
               View all <ArrowRight size={13} />
             </Link>
           </div>
-          {hasInvestments ? (
-            <ResponsiveContainer width="100%" height={240}>
-              <PieChart>
-                <Pie data={chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={95} paddingAngle={3} dataKey="value">
-                  {chartData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                </Pie>
-                <Tooltip formatter={(v: any) => formatCurrency(v as number)} contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 8, color: 'var(--color-text)', fontSize: '0.8125rem' }} />
-              </PieChart>
-            </ResponsiveContainer>
+           {hasInvestments ? (
+            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'center' }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart margin={{ top: 15, bottom: 15, left: 20, right: 20 }}>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={70}
+                    outerRadius={95}
+                    paddingAngle={3}
+                    dataKey="value"
+                    labelLine={{ stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1 }}
+                    label={(props) => {
+                      const { cx, cy, midAngle, outerRadius, percent, name } = props
+                      if (
+                        percent === undefined ||
+                        percent < 0.02 ||
+                        midAngle === undefined ||
+                        outerRadius === undefined ||
+                        cx === undefined ||
+                        cy === undefined
+                      ) return null
+                      
+                      // Hide text labels on mobile screens to prevent text clipping/overflow
+                      const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768
+                      if (isMobile) return null
+
+                      const RADIAN = Math.PI / 180
+                      const radius = outerRadius + 12
+                      const x = cx + radius * Math.cos(-midAngle * RADIAN)
+                      const y = cy + radius * Math.sin(-midAngle * RADIAN)
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          fill="var(--color-text)"
+                          textAnchor={x > cx ? 'start' : 'end'}
+                          dominantBaseline="central"
+                          fontSize={11}
+                          fontWeight={600}
+                        >
+                          {`${name} ${(percent * 100).toFixed(0)}%`}
+                        </text>
+                      )
+                    }}
+                  >
+                    {chartData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip formatter={(v: any) => formatCurrency(v as number)} contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 8, color: 'var(--color-text)', fontSize: '0.8rem' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           ) : (
             <div className="empty-state" style={{ padding: '2rem' }}>
               <TrendingUp size={32} style={{ margin: '0 auto 0.75rem', color: 'var(--color-text-muted)', display: 'block' }} />
               <p>No investments yet. <Link href="/investments">Add one →</Link></p>
             </div>
           )}
-          {/* Legend */}
+          {/* Legend (only visible on mobile to prevent overflow) */}
           {hasInvestments && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
+            <div className="mobile-only-legend" style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem' }}>
               {chartData.map(item => (
                 <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color, display: 'inline-block' }} />
@@ -246,32 +290,6 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* Split by Owner */}
-        {hasInvestments && (
-          <div className="card">
-            <div className="card-header">
-              <span className="card-title">Split by Owner</span>
-            </div>
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={ownerData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="amount">
-                  {ownerData.map((entry, idx) => (
-                    <Cell key={idx} fill={ownerColors[entry.name] || '#64748b'} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v: any) => formatCurrency(v as number)} contentStyle={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 8, color: 'var(--color-text)', fontSize: '0.8125rem' }} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', marginTop: '0.5rem', justifyContent: 'center' }}>
-              {ownerData.map(item => (
-                <div key={item.name} style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: ownerColors[item.name] || '#64748b', display: 'inline-block' }} />
-                  {item.name}: {formatCurrency(item.amount, true)}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Goals progress */}
         {hasGoals && (
