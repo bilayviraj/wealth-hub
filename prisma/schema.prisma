@@ -1,0 +1,134 @@
+// WealthHub Prisma Schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum InvestmentType {
+  FD
+  MF
+  STOCKS
+  GOLD
+  BONDS
+  POLICY
+  PPF
+  CASH
+}
+
+enum LoanType {
+  HOME
+  GOLD
+  PERSONAL
+  CAR
+  OTHER
+}
+
+enum ScheduleFrequency {
+  DAILY
+  WEEKLY
+  FIFTEEN_DAYS
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  YEARLY
+}
+
+// ─── Investment (flat entry, one row per transaction/installment) ─────────────
+
+model InvestmentEntry {
+  id        String         @id @default(cuid())
+  date      DateTime
+  name      String
+  type      InvestmentType
+  account   String?        // Platform: "Zerodha Coin", "Zerodha", "Upstox", "ICICI", "LIC"
+  owner     String?        // Person: "Viraj", "Prachi", "Joint"
+  amount    Float
+  notes     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+// ─── Recurring Schedule (SIP / Policy premium / PPF annual deposit) ───────────
+
+model RecurringSchedule {
+  id         String            @id @default(cuid())
+  name       String
+  type       InvestmentType
+  account    String?
+  owner      String?
+  amount     Float
+  frequency  ScheduleFrequency @default(MONTHLY)
+  dayOfMonth Int               @default(1) // 1-28: day within period to trigger
+  active     Boolean           @default(true)
+  startDate  DateTime
+  lastRun    DateTime?
+  notes      String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+}
+
+// ─── Loans ────────────────────────────────────────────────────────────────────
+
+model Loan {
+  id              String       @id @default(cuid())
+  type            LoanType
+  lenderName      String
+  principalAmount Float
+  interestRate    Float
+  tenureMonths    Int
+  startDate       DateTime
+  emiAmount       Float
+  notes           String?
+  emiSchedule     EMIPayment[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+}
+
+model EMIPayment {
+  id        String    @id @default(cuid())
+  loan      Loan      @relation(fields: [loanId], references: [id], onDelete: Cascade)
+  loanId    String
+  month     Int
+  dueDate   DateTime
+  principal Float
+  interest  Float
+  balance   Float
+  isPaid    Boolean   @default(false)
+  paidDate  DateTime?
+}
+
+// ─── Goals ────────────────────────────────────────────────────────────────────
+
+model Goal {
+  id            String   @id @default(cuid())
+  name          String
+  targetAmount  Float
+  currentAmount Float    @default(0)
+  targetDate    DateTime
+  priority      Int      @default(1)
+  color         String?
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ─── Salary ───────────────────────────────────────────────────────────────────
+
+model SalaryConfig {
+  id           String   @id @default(cuid())
+  monthlyGross Float
+  monthlyNet   Float
+  month        Int
+  year         Int
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([month, year])
+}
