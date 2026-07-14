@@ -207,6 +207,40 @@ a {
   .page-header > div {
     width: 100%;
   }
+
+  /* Force stat cards in 1 row on mobile screens */
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.5rem !important;
+    margin-bottom: 1.25rem !important;
+  }
+
+  .stat-card {
+    padding: 0.75rem !important;
+    border-radius: var(--border-radius-md) !important;
+  }
+
+  .stat-card__icon {
+    display: none !important; /* Hide icon on mobile to save vertical space if any exist */
+  }
+
+  .stat-card__label {
+    font-size: 0.6875rem !important;
+    margin-bottom: 0.25rem !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .stat-card__value {
+    font-size: 1.125rem !important;
+    letter-spacing: -0.01em !important;
+  }
+
+  .stat-card__sub {
+    font-size: 0.6875rem !important;
+    margin-top: 0.25rem !important;
+  }
 }
 
 /* ─── Cards ──────────────────────────────────────────────────────────────────── */
@@ -1039,4 +1073,19 @@ a {
 @keyframes pulse {
   0%, 100% { opacity: 0.6; }
   50% { opacity: 1; }
+}
+
+/* Disable focus outlines and tap-highlight colors on Recharts and SVGs when tapped */
+.recharts-responsive-container,
+.recharts-responsive-container *,
+.recharts-wrapper,
+.recharts-wrapper *,
+.recharts-surface,
+.recharts-surface *,
+svg,
+svg * {
+  outline: none !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0) !important;
 }

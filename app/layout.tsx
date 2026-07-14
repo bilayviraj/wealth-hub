@@ -10,6 +10,11 @@ export const metadata: Metadata = {
   },
   description: 'Your personal finance dashboard — track investments, loans, goals, and plan your financial future.',
   keywords: ['finance', 'investments', 'wealth', 'loans', 'goals', 'budget'],
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'WealthHub',
+  },
 }
 
 export default function RootLayout({
