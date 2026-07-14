@@ -31,13 +31,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div>
-        <div className="page-header">
-          <div>
-            <h1 className="page-header__title">Dashboard</h1>
-            <p className="page-header__subtitle">Your financial overview at a glance</p>
-          </div>
-        </div>
+      <div style={{ marginTop: '0.5rem' }}>
         <div className="stats-grid">
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="stat-card">
@@ -91,14 +85,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-header__title">Dashboard</h1>
-          <p className="page-header__subtitle">Your financial overview at a glance</p>
-        </div>
+      {/* Action Row */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.25rem', marginTop: '-0.75rem' }}>
         <button className="btn btn-secondary btn-sm" onClick={fetchStats} id="dashboard-refresh-btn">
-          <RefreshCw size={15} /> Refresh
+          <RefreshCw size={14} /> Refresh
         </button>
       </div>
 

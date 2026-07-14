@@ -33,12 +33,7 @@ const CALCULATORS = [
 export default function CalculatorsPage() {
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-header__title">Calculators</h1>
-          <p className="page-header__subtitle">Financial planning tools — no data saved, all calculations happen instantly</p>
-        </div>
-      </div>
+      <div style={{ marginTop: '0.5rem' }}></div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
         {CALCULATORS.map(({ href, icon: Icon, title, description, accent, id }) => (

@@ -51,12 +51,7 @@ export default function HomeLoanCalculator() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-header__title">Home Loan Calculator</h1>
-          <p className="page-header__subtitle">Calculate EMI, total interest, and view full amortization schedule</p>
-        </div>
-      </div>
+      <div style={{ marginTop: '0.5rem' }}></div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Input panel */}

@@ -40,12 +40,7 @@ export default function GoldLoanCalculator() {
 
   return (
     <div>
-      <div className="page-header">
-        <div>
-          <h1 className="page-header__title">Gold Loan Calculator</h1>
-          <p className="page-header__subtitle">Estimate your eligible loan amount based on gold value and LTV</p>
-        </div>
-      </div>
+      <div style={{ marginTop: '0.5rem' }}></div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '1.5rem', alignItems: 'start' }}>
         {/* Input */}
