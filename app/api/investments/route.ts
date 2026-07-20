@@ -9,11 +9,17 @@ const EntrySchema = z.object({
   date:    z.string().min(1, 'Date required'),
   name:    z.string().min(1, 'Name required'),
   type:    z.enum(['FD','MF','STOCKS','GOLD','BONDS','POLICY','PPF','CASH']),
+  txnType: z.enum(['BUY','SELL']).default('BUY'),
   account: z.string().optional().nullable(),
   owner:   z.string().optional().nullable(),
   amount:  z.number().positive('Amount must be positive'),
   notes:   z.string().optional().nullable(),
 })
+
+// Helper: compute net = sum(BUY) - sum(SELL) from two aggregate results
+function netAmount(buySum: number, sellSum: number) {
+  return buySum - sellSum
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,13 +27,13 @@ export async function GET(request: NextRequest) {
     const type    = searchParams.get('type')
     const owner   = searchParams.get('owner')
     const account = searchParams.get('account')
+    const txnType = searchParams.get('txnType')
     const yearParam = searchParams.get('year')
 
     const now = new Date()
     const currentYear = now.getFullYear()
 
     // ── Determine date range for grid entries ──────────────────────────────────
-    // Default to current year; pass year=all to skip date filter
     const dateFilter = yearParam === 'all'
       ? {}
       : {
@@ -40,86 +46,90 @@ export async function GET(request: NextRequest) {
     // ── Fetch filtered entries for the grid ────────────────────────────────────
     const entries = await prisma.investmentEntry.findMany({
       where: {
-        ...(type    ? { type: type as any } : {}),
-        ...(owner   ? { owner }             : {}),
-        ...(account ? { account }           : {}),
+        ...(type    ? { type: type as any }       : {}),
+        ...(owner   ? { owner }                   : {}),
+        ...(account ? { account }                 : {}),
+        ...(txnType ? { txnType: txnType as any } : {}),
         ...dateFilter,
       },
       orderBy: { date: 'desc' },
     })
 
-    // ── All-time aggregates via groupBy (no full table scan in JS) ─────────────
+    // ── All-time NET aggregates (BUY - SELL) ───────────────────────────────────
 
-    // Total invested all-time
-    const totalAgg = await prisma.investmentEntry.aggregate({
+    const [buyTotalAgg, sellTotalAgg] = await Promise.all([
+      prisma.investmentEntry.aggregate({ where: { txnType: 'BUY' }, _sum: { amount: true } }),
+      prisma.investmentEntry.aggregate({ where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const totalAllTime = netAmount(buyTotalAgg._sum.amount ?? 0, sellTotalAgg._sum.amount ?? 0)
+
+    // By year — group by date+txnType, then net per year
+    const byDateRaw = await prisma.investmentEntry.groupBy({
+      by: ['date', 'txnType'],
       _sum: { amount: true },
     })
-    const totalAllTime = totalAgg._sum.amount ?? 0
-
-    // By year (all years)
-    const byYearRaw = await prisma.investmentEntry.groupBy({
-      by: ['date'],
-      _sum: { amount: true },
-    })
-    // Collapse by calendar year
     const byYearMap = new Map<number, number>()
-    for (const row of byYearRaw) {
+    for (const row of byDateRaw) {
       const yr = new Date(row.date).getFullYear()
-      byYearMap.set(yr, (byYearMap.get(yr) ?? 0) + (row._sum.amount ?? 0))
+      const sign = row.txnType === 'SELL' ? -1 : 1
+      byYearMap.set(yr, (byYearMap.get(yr) ?? 0) + sign * (row._sum.amount ?? 0))
     }
     const byYear = Array.from(byYearMap.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([year, invested]) => ({ year: String(year), invested }))
 
-    // This year total
+    // This year net
     const thisYearStart = new Date(`${currentYear}-01-01`)
     const thisYearEnd   = new Date(`${currentYear}-12-31`)
-    const thisYearAgg = await prisma.investmentEntry.aggregate({
-      where: { date: { gte: thisYearStart, lte: thisYearEnd } },
-      _sum: { amount: true },
-    })
-    const totalThisYear = thisYearAgg._sum.amount ?? 0
+    const [buyYearAgg, sellYearAgg] = await Promise.all([
+      prisma.investmentEntry.aggregate({ where: { txnType: 'BUY', date: { gte: thisYearStart, lte: thisYearEnd } }, _sum: { amount: true } }),
+      prisma.investmentEntry.aggregate({ where: { txnType: 'SELL', date: { gte: thisYearStart, lte: thisYearEnd } }, _sum: { amount: true } }),
+    ])
+    const totalThisYear = netAmount(buyYearAgg._sum.amount ?? 0, sellYearAgg._sum.amount ?? 0)
 
-    // This month total
+    // This month net
     const thisMonthStart = new Date(currentYear, now.getMonth(), 1)
     const thisMonthEnd   = new Date(currentYear, now.getMonth() + 1, 0)
-    const thisMonthAgg = await prisma.investmentEntry.aggregate({
-      where: { date: { gte: thisMonthStart, lte: thisMonthEnd } },
-      _sum: { amount: true },
-    })
-    const totalThisMonth = thisMonthAgg._sum.amount ?? 0
+    const [buyMonthAgg, sellMonthAgg] = await Promise.all([
+      prisma.investmentEntry.aggregate({ where: { txnType: 'BUY', date: { gte: thisMonthStart, lte: thisMonthEnd } }, _sum: { amount: true } }),
+      prisma.investmentEntry.aggregate({ where: { txnType: 'SELL', date: { gte: thisMonthStart, lte: thisMonthEnd } }, _sum: { amount: true } }),
+    ])
+    const totalThisMonth = netAmount(buyMonthAgg._sum.amount ?? 0, sellMonthAgg._sum.amount ?? 0)
 
-    // By type (all-time)
-    const byTypeRaw = await prisma.investmentEntry.groupBy({
-      by: ['type'],
-      _sum: { amount: true },
-    })
-    const byType = byTypeRaw.map(r => ({
+    // By type — net per type
+    const [byTypeBuy, byTypeSell] = await Promise.all([
+      prisma.investmentEntry.groupBy({ by: ['type'], where: { txnType: 'BUY' }, _sum: { amount: true } }),
+      prisma.investmentEntry.groupBy({ by: ['type'], where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const sellByTypeMap = new Map(byTypeSell.map(r => [r.type, r._sum.amount ?? 0]))
+    const byType = byTypeBuy.map(r => ({
       type:     r.type as string,
-      invested: r._sum.amount ?? 0,
-    }))
+      invested: netAmount(r._sum.amount ?? 0, sellByTypeMap.get(r.type) ?? 0),
+    })).filter(r => r.invested > 0)
 
-    // By account (all-time)
-    const byAccountRaw = await prisma.investmentEntry.groupBy({
-      by: ['account'],
-      _sum: { amount: true },
-    })
-    const byAccount = byAccountRaw.map(r => ({
+    // By account — net per account
+    const [byAccountBuy, byAccountSell] = await Promise.all([
+      prisma.investmentEntry.groupBy({ by: ['account'], where: { txnType: 'BUY' }, _sum: { amount: true } }),
+      prisma.investmentEntry.groupBy({ by: ['account'], where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const sellByAccountMap = new Map(byAccountSell.map(r => [r.account, r._sum.amount ?? 0]))
+    const byAccount = byAccountBuy.map(r => ({
       account:  r.account ?? 'Other',
-      invested: r._sum.amount ?? 0,
+      invested: netAmount(r._sum.amount ?? 0, sellByAccountMap.get(r.account) ?? 0),
     }))
 
-    // By owner (all-time)
-    const byOwnerRaw = await prisma.investmentEntry.groupBy({
-      by: ['owner'],
-      _sum: { amount: true },
-    })
-    const byOwner = byOwnerRaw.map(r => ({
+    // By owner — net per owner
+    const [byOwnerBuy, byOwnerSell] = await Promise.all([
+      prisma.investmentEntry.groupBy({ by: ['owner'], where: { txnType: 'BUY' }, _sum: { amount: true } }),
+      prisma.investmentEntry.groupBy({ by: ['owner'], where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const sellByOwnerMap = new Map(byOwnerSell.map(r => [r.owner, r._sum.amount ?? 0]))
+    const byOwner = byOwnerBuy.map(r => ({
       owner:    r.owner ?? 'Unknown',
-      invested: r._sum.amount ?? 0,
+      invested: netAmount(r._sum.amount ?? 0, sellByOwnerMap.get(r.owner) ?? 0),
     }))
 
-    // All investment names (for autocomplete) — lightweight
+    // All investment names (for autocomplete)
     const allNames = await prisma.investmentEntry.findMany({
       select: { name: true },
       distinct: ['name'],
@@ -156,6 +166,7 @@ export async function POST(request: NextRequest) {
         date:    new Date(data.date),
         name:    data.name,
         type:    data.type,
+        txnType: data.txnType,
         account: data.account ?? null,
         owner:   data.owner ?? null,
         amount:  data.amount,

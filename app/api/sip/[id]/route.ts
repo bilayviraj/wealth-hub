@@ -11,8 +11,10 @@ const UpdateSchema = z.object({
   account:    z.string().optional().nullable(),
   owner:      z.string().optional().nullable(),
   amount:     z.number().positive().optional(),
-  frequency:  z.enum(['MONTHLY','QUARTERLY','HALF_YEARLY','YEARLY']).optional(),
+  frequency:  z.enum(['DAILY','WEEKLY','FIFTEEN_DAYS','MONTHLY','QUARTERLY','HALF_YEARLY','YEARLY']).optional(),
   dayOfMonth: z.number().int().min(1).max(28).optional(),
+  startDate:  z.string().optional(),
+  lastRun:    z.string().nullable().optional(),
   active:     z.boolean().optional(),
   notes:      z.string().optional().nullable(),
 })
@@ -26,9 +28,17 @@ export async function PUT(
     const body = await request.json()
     const data = UpdateSchema.parse(body)
 
+    // Convert date strings → Date objects for Prisma
+    const prismaData = {
+      ...data,
+      ...(data.startDate ? { startDate: new Date(data.startDate) } : {}),
+      // lastRun: null resets the cadence so schedule restarts from startDate
+      ...('lastRun' in data ? { lastRun: data.lastRun ? new Date(data.lastRun) : null } : {}),
+    }
+
     const schedule = await prisma.recurringSchedule.update({
       where: { id },
-      data,
+      data: prismaData,
     })
 
     return Response.json(schedule)

@@ -22,6 +22,11 @@ enum InvestmentType {
   CASH
 }
 
+enum TransactionType {
+  BUY
+  SELL
+}
+
 enum LoanType {
   HOME
   GOLD
@@ -43,16 +48,17 @@ enum ScheduleFrequency {
 // ─── Investment (flat entry, one row per transaction/installment) ─────────────
 
 model InvestmentEntry {
-  id        String         @id @default(cuid())
+  id        String          @id @default(cuid())
   date      DateTime
   name      String
   type      InvestmentType
-  account   String?        // Platform: "Zerodha Coin", "Zerodha", "Upstox", "ICICI", "LIC"
-  owner     String?        // Person: "Viraj", "Prachi", "Joint"
+  txnType   TransactionType @default(BUY)
+  account   String?         // Platform: "Zerodha Coin", "Zerodha", "Upstox", "ICICI", "LIC"
+  owner     String?         // Person: "Viraj", "Prachi", "Joint"
   amount    Float
   notes     String?
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
 }
 
 // ─── Recurring Schedule (SIP / Policy premium / PPF annual deposit) ───────────

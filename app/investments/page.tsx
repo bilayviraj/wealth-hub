@@ -59,6 +59,7 @@ export default function InvestmentsPage() {
   const [filterOwner, setFilterOwner]     = useState<string>('all')
   const [filterType, setFilterType]       = useState<string>('all')
   const [filterAccount, setFilterAccount] = useState<string>('all')
+  const [filterTxnType, setFilterTxnType] = useState<string>('all')
   const [recentPeriod, setRecentPeriod]   = useState<'1m' | '3m' | '6m'>('1m')
   const gridRef = useRef<GridApi | null>(null)
 
@@ -91,11 +92,12 @@ export default function InvestmentsPage() {
     }
   }
 
-  // ── Local client-side filter (owner / type / account) on the loaded entries ──
+  // ── Local client-side filter (owner / type / account / txnType) on the loaded entries ──
   const filtered = entries.filter(e => {
-    if (filterOwner   !== 'all' && e.owner   !== filterOwner)   return false
-    if (filterType    !== 'all' && e.type    !== filterType)    return false
-    if (filterAccount !== 'all' && e.account !== filterAccount) return false
+    if (filterOwner   !== 'all' && e.owner   !== filterOwner)               return false
+    if (filterType    !== 'all' && e.type    !== filterType)                return false
+    if (filterAccount !== 'all' && e.account !== filterAccount)             return false
+    if (filterTxnType !== 'all' && e.txnType !== filterTxnType)            return false
     return true
   })
 
@@ -117,12 +119,13 @@ export default function InvestmentsPage() {
     color: getInvestmentTypeColor(r.type),
   }))
 
-  // ── Current year breakdown — computed from loaded (current-year) entries ──────
+  // ── Current year breakdown — computed from loaded (current-year) entries (net) ──
   const currentYear     = new Date().getFullYear()
   const currentYearTotal = summary?.totalThisYear ?? 0
   const currentYearByType = Object.entries(
     entries.reduce((acc, e) => {
-      acc[e.type] = (acc[e.type] ?? 0) + e.amount
+      const sign = e.txnType === 'SELL' ? -1 : 1
+      acc[e.type] = (acc[e.type] ?? 0) + sign * e.amount
       return acc
     }, {} as Record<string, number>)
   ).map(([type, amount]) => ({
@@ -130,7 +133,7 @@ export default function InvestmentsPage() {
     label: getInvestmentTypeLabel(type),
     amount,
     color: getInvestmentTypeColor(type),
-  })).sort((a, b) => b.amount - a.amount)
+  })).filter(item => item.amount > 0).sort((a, b) => b.amount - a.amount)
 
   const currentMonthIdx  = new Date().getMonth()
   const currentMonthTotal = summary?.totalThisMonth ?? 0
@@ -149,7 +152,8 @@ export default function InvestmentsPage() {
   const recentEntries = filtered.filter(e => new Date(e.date) >= periodStart)
   const recentByType  = Object.entries(
     recentEntries.reduce((acc, e) => {
-      acc[e.type] = (acc[e.type] ?? 0) + e.amount
+      const sign = e.txnType === 'SELL' ? -1 : 1
+      acc[e.type] = (acc[e.type] ?? 0) + sign * e.amount
       return acc
     }, {} as Record<string, number>)
   ).map(([type, amount]) => ({
@@ -157,7 +161,7 @@ export default function InvestmentsPage() {
     label: getInvestmentTypeLabel(type),
     amount,
     color: getInvestmentTypeColor(type),
-  })).sort((a, b) => b.amount - a.amount)
+  })).filter(item => item.amount > 0).sort((a, b) => b.amount - a.amount)
   const recentTotal = recentByType.reduce((s, e) => s + e.amount, 0)
 
   // ── AG Grid column defs ───────────────────────────────────────────────────────
@@ -195,8 +199,27 @@ export default function InvestmentsPage() {
         : <span className="text-muted">—</span>,
     },
     {
+      headerName: 'Txn', width: 85, sortable: true,
+      valueGetter: (p: any) => p.data?.txnType ?? 'BUY',
+      cellRenderer: (p: any) => {
+        const isSell = p.value === 'SELL'
+        return (
+          <span className={`badge ${isSell ? 'badge-sell' : 'badge-buy'}`}>
+            {isSell ? 'SELL' : 'BUY'}
+          </span>
+        )
+      },
+    },
+    {
       field: 'amount', headerName: 'Amount (₹)', width: 150,
-      cellRenderer: (p: any) => <span style={{ fontWeight: 600 }}>{formatCurrency(p.value)}</span>,
+      cellRenderer: (p: any) => {
+        const isSell = p.data?.txnType === 'SELL'
+        return (
+          <span style={{ fontWeight: 600, color: isSell ? 'var(--color-danger)' : undefined }}>
+            {isSell ? '-' : ''}{formatCurrency(p.value)}
+          </span>
+        )
+      },
       filter: 'agNumberColumnFilter',
       type: 'numericColumn',
     },
@@ -250,9 +273,9 @@ export default function InvestmentsPage() {
 
       {/* Stat cards */}
       <div className="stats-grid">
-        <StatCard id="stat-total-inv" label="Total Invested" value={totalInvested} compact accentColor="var(--color-primary)" iconBg="var(--color-primary-glow)" />
-        <StatCard id="stat-inv-month" label={`${currentMonthName} Invested`} value={currentMonthTotal} compact accentColor="var(--color-info)" iconBg="var(--color-info-bg)" />
-        <StatCard id="stat-inv-year" label={`${currentYear} Invested`}
+        <StatCard id="stat-total-inv" label="Net Invested" value={totalInvested} compact accentColor="var(--color-primary)" iconBg="var(--color-primary-glow)" />
+        <StatCard id="stat-inv-month" label={`${currentMonthName} Net`} value={currentMonthTotal} compact accentColor="var(--color-info)" iconBg="var(--color-info-bg)" />
+        <StatCard id="stat-inv-year" label={`${currentYear} Net`}
           value={currentYearTotal}
           compact accentColor="var(--color-success)" iconBg="var(--color-success-bg)" />
       </div>
@@ -392,13 +415,19 @@ export default function InvestmentsPage() {
             <option value="all">All Accounts</option>
             {uniqueAccounts.map(a => <option key={a} value={a}>{a}</option>)}
           </select>
-          {(filterOwner !== 'all' || filterType !== 'all' || filterAccount !== 'all') && (
-            <button className="btn btn-ghost btn-sm" onClick={() => { setFilterOwner('all'); setFilterType('all'); setFilterAccount('all') }}>
+          <select className="select" style={{ minWidth: 120, fontSize: '0.8125rem', padding: '0.375rem 0.75rem' }}
+            value={filterTxnType} onChange={e => setFilterTxnType(e.target.value)} id="filter-txntype">
+            <option value="all">All Txns</option>
+            <option value="BUY">BUY only</option>
+            <option value="SELL">SELL only</option>
+          </select>
+          {(filterOwner !== 'all' || filterType !== 'all' || filterAccount !== 'all' || filterTxnType !== 'all') && (
+            <button className="btn btn-ghost btn-sm" onClick={() => { setFilterOwner('all'); setFilterType('all'); setFilterAccount('all'); setFilterTxnType('all') }}>
               Clear filters
             </button>
           )}
           <span style={{ marginLeft: 'auto', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
-            {filtered.length} entries · {formatCurrency(filtered.reduce((s, e) => s + e.amount, 0))}
+            {filtered.length} entries
           </span>
         </div>
 

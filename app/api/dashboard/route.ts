@@ -11,56 +11,62 @@ export async function GET() {
       prisma.salaryConfig.findFirst({ orderBy: [{ year: 'desc' }, { month: 'desc' }] }),
     ])
 
-    // ── Investment aggregates via groupBy — no full row scan ───────────────────
+    // ── Investment aggregates — NET = BUY - SELL ────────────────────────────────
 
-    // Total invested (all-time)
-    const totalAgg = await prisma.investmentEntry.aggregate({
-      _sum: { amount: true },
-    })
-    const totalInvested = totalAgg._sum.amount ?? 0
+    const [buyTotalAgg, sellTotalAgg] = await Promise.all([
+      prisma.investmentEntry.aggregate({ where: { txnType: 'BUY' },  _sum: { amount: true } }),
+      prisma.investmentEntry.aggregate({ where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const totalInvested = (buyTotalAgg._sum.amount ?? 0) - (sellTotalAgg._sum.amount ?? 0)
 
-    // By type (all-time)
-    const byTypeRaw = await prisma.investmentEntry.groupBy({
-      by: ['type'],
-      _sum: { amount: true },
-    })
-    const investmentBreakdown = byTypeRaw.map(r => ({
-      type:     r.type as string,
-      invested: r._sum.amount ?? 0,
-    }))
+    // By type — net per type (for Portfolio Allocation)
+    const [byTypeBuy, byTypeSell] = await Promise.all([
+      prisma.investmentEntry.groupBy({ by: ['type'], where: { txnType: 'BUY' },  _sum: { amount: true } }),
+      prisma.investmentEntry.groupBy({ by: ['type'], where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const sellByTypeMap = new Map(byTypeSell.map(r => [r.type, r._sum.amount ?? 0]))
+    const investmentBreakdown = byTypeBuy
+      .map(r => ({
+        type:     r.type as string,
+        invested: (r._sum.amount ?? 0) - (sellByTypeMap.get(r.type) ?? 0),
+      }))
+      .filter(r => r.invested > 0)
 
-    // By year — groupBy returns one row per distinct date value, collapse by year
+    // By year — net invested per year
     const byDateRaw = await prisma.investmentEntry.groupBy({
-      by: ['date'],
+      by: ['date', 'txnType'],
       _sum: { amount: true },
     })
     const byYearMap = new Map<number, number>()
     for (const row of byDateRaw) {
       const yr = new Date(row.date).getFullYear()
-      byYearMap.set(yr, (byYearMap.get(yr) ?? 0) + (row._sum.amount ?? 0))
+      const sign = row.txnType === 'SELL' ? -1 : 1
+      byYearMap.set(yr, (byYearMap.get(yr) ?? 0) + sign * (row._sum.amount ?? 0))
     }
     const byYear = Array.from(byYearMap.entries())
       .sort((a, b) => a[0] - b[0])
       .map(([year, invested]) => ({ year, invested }))
 
-    // By account (all-time)
-    const byAccountRaw = await prisma.investmentEntry.groupBy({
-      by: ['account'],
-      _sum: { amount: true },
-    })
-    const byAccount = byAccountRaw.map(r => ({
+    // By account — net per account
+    const [byAccountBuy, byAccountSell] = await Promise.all([
+      prisma.investmentEntry.groupBy({ by: ['account'], where: { txnType: 'BUY' },  _sum: { amount: true } }),
+      prisma.investmentEntry.groupBy({ by: ['account'], where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const sellByAccountMap = new Map(byAccountSell.map(r => [r.account, r._sum.amount ?? 0]))
+    const byAccount = byAccountBuy.map(r => ({
       account:  r.account ?? 'Other',
-      invested: r._sum.amount ?? 0,
+      invested: (r._sum.amount ?? 0) - (sellByAccountMap.get(r.account) ?? 0),
     }))
 
-    // By owner (all-time)
-    const byOwnerRaw = await prisma.investmentEntry.groupBy({
-      by: ['owner'],
-      _sum: { amount: true },
-    })
-    const byOwner = byOwnerRaw.map(r => ({
+    // By owner — net per owner
+    const [byOwnerBuy, byOwnerSell] = await Promise.all([
+      prisma.investmentEntry.groupBy({ by: ['owner'], where: { txnType: 'BUY' },  _sum: { amount: true } }),
+      prisma.investmentEntry.groupBy({ by: ['owner'], where: { txnType: 'SELL' }, _sum: { amount: true } }),
+    ])
+    const sellByOwnerMap = new Map(byOwnerSell.map(r => [r.owner, r._sum.amount ?? 0]))
+    const byOwner = byOwnerBuy.map(r => ({
       owner:    r.owner ?? 'Unknown',
-      invested: r._sum.amount ?? 0,
+      invested: (r._sum.amount ?? 0) - (sellByOwnerMap.get(r.owner) ?? 0),
     }))
 
     // ── Loan totals ──────────────────────────────────────────────────────────

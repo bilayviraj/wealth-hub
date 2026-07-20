@@ -19,6 +19,8 @@ const schema = z.object({
   notes:   z.string().optional().nullable(),
 })
 
+type TxnType = 'BUY' | 'SELL'
+
 type FormData = z.infer<typeof schema>
 
 interface Props {
@@ -190,6 +192,9 @@ export default function InvestmentForm({ initial, uniqueNames = [], onSaved, onC
         },
   })
 
+  const [txnType, setTxnType] = useState<TxnType>(initial?.txnType === 'SELL' ? 'SELL' : 'BUY')
+  const isSell = txnType === 'SELL'
+
   const { field: nameField } = useController({ name: 'name', control, defaultValue: '' })
 
   const onSubmit = async (data: FormData) => {
@@ -202,6 +207,7 @@ export default function InvestmentForm({ initial, uniqueNames = [], onSaved, onC
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
+          txnType,
           account: data.account || null,
           owner:   data.owner   || null,
           notes:   data.notes   || null,
@@ -209,7 +215,7 @@ export default function InvestmentForm({ initial, uniqueNames = [], onSaved, onC
       })
 
       if (!res.ok) throw new Error()
-      toast.success(initial ? 'Entry updated' : 'Entry added')
+      toast.success(initial ? 'Entry updated' : (isSell ? 'Redemption recorded' : 'Entry added'))
       onSaved()
     } catch {
       toast.error('Failed to save entry')
@@ -218,6 +224,40 @@ export default function InvestmentForm({ initial, uniqueNames = [], onSaved, onC
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} id="inv-entry-form">
+      {/* BUY / SELL toggle */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem' }}>
+        <button
+          type="button"
+          onClick={() => setTxnType('BUY')}
+          style={{
+            flex: 1, padding: '0.5rem', borderRadius: 'var(--border-radius)', border: '2px solid',
+            borderColor: !isSell ? 'var(--color-success)' : 'var(--border-default)',
+            background: !isSell ? 'var(--color-success-bg)' : 'transparent',
+            color: !isSell ? 'var(--color-success)' : 'var(--color-text-secondary)',
+            fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', transition: 'all 0.15s',
+          }}
+        >
+          📈 BUY / Invest
+        </button>
+        <button
+          type="button"
+          onClick={() => setTxnType('SELL')}
+          style={{
+            flex: 1, padding: '0.5rem', borderRadius: 'var(--border-radius)', border: '2px solid',
+            borderColor: isSell ? 'var(--color-danger)' : 'var(--border-default)',
+            background: isSell ? 'var(--color-danger-bg)' : 'transparent',
+            color: isSell ? 'var(--color-danger)' : 'var(--color-text-secondary)',
+            fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', transition: 'all 0.15s',
+          }}
+        >
+          📉 SELL / Redeem
+        </button>
+      </div>
+      {isSell && (
+        <div style={{ background: 'var(--color-danger-bg)', border: '1px solid var(--color-danger)', borderRadius: 'var(--border-radius)', padding: '0.5rem 0.75rem', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--color-danger)' }}>
+          ⚠️ This will record a redemption/exit. The amount will be subtracted from your net invested total.
+        </div>
+      )}
       <div className="form-grid">
 
         {/* Date */}
@@ -250,9 +290,10 @@ export default function InvestmentForm({ initial, uniqueNames = [], onSaved, onC
 
         {/* Amount */}
         <div className="input-group">
-          <label className="input-label">Amount (₹) <span className="required">*</span></label>
+          <label className="input-label">{isSell ? 'Redemption Value (₹)' : 'Amount (₹)'} <span className="required">*</span></label>
           <input type="number" step="1" className={`input ${errors.amount ? 'error' : ''}`}
-            placeholder="e.g. 25000"
+            placeholder={isSell ? 'e.g. 15000' : 'e.g. 25000'}
+            style={isSell ? { borderColor: 'var(--color-danger)' } : {}}
             {...register('amount', { valueAsNumber: true })} />
           {errors.amount && <span className="input-error">{errors.amount.message}</span>}
         </div>
@@ -278,15 +319,17 @@ export default function InvestmentForm({ initial, uniqueNames = [], onSaved, onC
         {/* Notes */}
         <div className="input-group">
           <label className="input-label">Notes</label>
-          <input className="input" placeholder="Optional notes" {...register('notes')} />
+          <input className="input" placeholder={isSell ? 'e.g. Partial redemption – 100 units @ ₹52' : 'Optional notes'} {...register('notes')} />
         </div>
 
       </div>
 
       <div className="form-actions">
         <button type="button" className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="btn btn-primary" disabled={isSubmitting} id="inv-save-btn">
-          {isSubmitting ? 'Saving…' : initial ? 'Update Entry' : 'Add Entry'}
+        <button type="submit" className="btn btn-primary" disabled={isSubmitting}
+          style={isSell ? { background: 'var(--color-danger)', borderColor: 'var(--color-danger)' } : {}}
+          id="inv-save-btn">
+          {isSubmitting ? 'Saving…' : initial ? 'Update Entry' : isSell ? 'Record Redemption' : 'Add Entry'}
         </button>
       </div>
     </form>

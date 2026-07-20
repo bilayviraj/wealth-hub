@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { addDays, addMonths, addYears } from 'date-fns'
 import { z } from 'zod'
-import { PlusCircle, Play, Pause, Trash2, CalendarClock } from 'lucide-react'
+import { PlusCircle, Play, Pause, Trash2, CalendarClock, Pencil, X } from 'lucide-react'
 import type { RecurringSchedule } from '@/types'
 import { formatCurrency, formatDate, formatDateInput, getInvestmentTypeLabel, getFrequencyLabel } from '@/lib/utils'
 import { ACCOUNT_OPTIONS, OWNER_OPTIONS } from '@/app/investments/page'
@@ -51,11 +52,24 @@ export default function SIPManager({ onEntryCreated }: Props) {
   const [schedules, setSchedules] = useState<RecurringSchedule[]>([])
   const [loading, setLoading]     = useState(true)
   const [showForm, setShowForm]   = useState(false)
+  // null = creating new; string = editing that schedule id
+  const [editingId, setEditingId] = useState<string | null>(null)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const defaultValues: Partial<FormData> = {
+    type: 'MF', frequency: 'MONTHLY', dayOfMonth: 10,
+    owner: 'Viraj', startDate: formatDateInput(new Date()),
+  }
+
+  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema) as any,
-    defaultValues: { type: 'MF', frequency: 'MONTHLY', dayOfMonth: 10, owner: 'Viraj', startDate: formatDateInput(new Date()) },
+    defaultValues,
   })
+  const watchedFrequency = watch('frequency')
+  const [resetLastRun, setResetLastRun] = useState(false)
+  // Hide dayOfMonth for time-based (non-calendar-day) frequencies
+  const showDayOfMonth = useMemo(() =>
+    ['MONTHLY', 'QUARTERLY', 'HALF_YEARLY', 'YEARLY'].includes(watchedFrequency ?? 'MONTHLY'),
+  [watchedFrequency])
 
   const fetch_ = useCallback(async () => {
     setLoading(true)
@@ -66,19 +80,76 @@ export default function SIPManager({ onEntryCreated }: Props) {
 
   useEffect(() => { fetch_() }, [fetch_])
 
+  // Open form for creating
+  const openAdd = () => {
+    setEditingId(null)
+    setResetLastRun(false)
+    reset(defaultValues)
+    setShowForm(true)
+  }
+
+  // Open form pre-filled for editing
+  const openEdit = (s: RecurringSchedule) => {
+    setEditingId(s.id)
+    reset({
+      name:       s.name,
+      type:       s.type as FormData['type'],
+      account:    s.account ?? '',
+      owner:      s.owner ?? '',
+      amount:     s.amount,
+      frequency:  s.frequency as FormData['frequency'],
+      dayOfMonth: s.dayOfMonth,
+      startDate:  formatDateInput(new Date(s.startDate)),
+      notes:      s.notes ?? '',
+    })
+    setResetLastRun(false)
+    setShowForm(true)
+    // Scroll form into view smoothly
+    setTimeout(() => document.getElementById('sip-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
+
+  const closeForm = () => {
+    setShowForm(false)
+    setEditingId(null)
+    setResetLastRun(false)
+    reset(defaultValues)
+  }
+
   const onSubmit = async (data: FormData) => {
+    const body = JSON.stringify({
+      ...data,
+      account: data.account || null,
+      owner: data.owner || null,
+      notes: data.notes || null,
+    })
+
     try {
-      const r = await fetch('/api/sip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...data, account: data.account || null, owner: data.owner || null, notes: data.notes || null }),
-      })
-      if (!r.ok) throw new Error()
-      toast.success('Schedule created')
-      reset()
-      setShowForm(false)
+      if (editingId) {
+        // Update existing
+        // Include lastRun reset if requested (sends null to clear cadence)
+      const editBody = resetLastRun
+        ? JSON.stringify({ ...JSON.parse(body), lastRun: null })
+        : body
+      const r = await fetch(`/api/sip/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: editBody,
+        })
+        if (!r.ok) throw new Error()
+        toast.success('Schedule updated')
+      } else {
+        // Create new
+        const r = await fetch('/api/sip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        })
+        if (!r.ok) throw new Error()
+        toast.success('Schedule created')
+      }
+      closeForm()
       fetch_()
-    } catch { toast.error('Failed to create') }
+    } catch { toast.error(editingId ? 'Failed to update' : 'Failed to create') }
   }
 
   const toggleActive = async (s: RecurringSchedule) => {
@@ -119,11 +190,9 @@ export default function SIPManager({ onEntryCreated }: Props) {
   const nextDue = (s: RecurringSchedule) => {
     const start = new Date(s.startDate)
     const lastRun = s.lastRun ? new Date(s.lastRun) : null
-    
-    if (!lastRun) {
-      return start
-    }
-    
+
+    if (!lastRun) return start
+
     const d = new Date(lastRun)
     if (s.frequency === 'DAILY') {
       d.setDate(d.getDate() + 1)
@@ -151,14 +220,21 @@ export default function SIPManager({ onEntryCreated }: Props) {
         </p>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button className="btn btn-secondary btn-sm" onClick={runNow} id="sip-run-now-btn"><Play size={13} /> Run Due Now</button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowForm(v => !v)} id="sip-add-btn"><PlusCircle size={14} /> Add Schedule</button>
+          <button className="btn btn-primary btn-sm" onClick={openAdd} id="sip-add-btn"><PlusCircle size={14} /> Add Schedule</button>
         </div>
       </div>
 
-      {/* Add form */}
+      {/* Add / Edit form */}
       {showForm && (
-        <form onSubmit={handleSubmit(onSubmit)} className="card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
-          <h3 style={{ marginBottom: '1rem', fontSize: '0.9375rem', fontWeight: 600 }}>New Recurring Schedule</h3>
+        <form id="sip-form" onSubmit={handleSubmit(onSubmit)} className="card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+            <h3 style={{ fontSize: '0.9375rem', fontWeight: 600, margin: 0 }}>
+              {editingId ? 'Edit Recurring Schedule' : 'New Recurring Schedule'}
+            </h3>
+            <button type="button" className="btn btn-ghost btn-icon btn-sm" onClick={closeForm} title="Close">
+              <X size={16} />
+            </button>
+          </div>
           <div className="form-grid">
             <div className="input-group span-2">
               <label className="input-label">Name <span className="required">*</span></label>
@@ -182,10 +258,12 @@ export default function SIPManager({ onEntryCreated }: Props) {
                 {FREQ_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
-            <div className="input-group">
-              <label className="input-label">Day of Month (1–28)</label>
-              <input type="number" min="1" max="28" className="input" {...register('dayOfMonth', { valueAsNumber: true })} />
-            </div>
+            {showDayOfMonth && (
+              <div className="input-group">
+                <label className="input-label">Day of Month (1–28)</label>
+                <input type="number" min="1" max="28" className="input" {...register('dayOfMonth', { valueAsNumber: true })} />
+              </div>
+            )}
             <div className="input-group">
               <label className="input-label">Owner</label>
               <select className="select" {...register('owner')}>
@@ -209,10 +287,22 @@ export default function SIPManager({ onEntryCreated }: Props) {
               <input className="input" placeholder="Optional" {...register('notes')} />
             </div>
           </div>
+          {/* Reset cadence option (only when editing an existing schedule) */}
+          {editingId && (
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem', cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={resetLastRun}
+                onChange={e => setResetLastRun(e.target.checked)}
+                style={{ accentColor: 'var(--color-warning)', width: 15, height: 15 }}
+              />
+              Reset schedule cadence (restart from Start Date, ignoring previous runs)
+            </label>
+          )}
           <div className="form-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
+            <button type="button" className="btn btn-secondary" onClick={closeForm}>Cancel</button>
             <button type="submit" className="btn btn-primary" disabled={isSubmitting} id="sip-save-btn">
-              {isSubmitting ? 'Saving…' : 'Create Schedule'}
+              {isSubmitting ? 'Saving…' : editingId ? 'Save Changes' : 'Create Schedule'}
             </button>
           </div>
         </form>
@@ -231,10 +321,12 @@ export default function SIPManager({ onEntryCreated }: Props) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
           {schedules.map(s => {
             const nd = nextDue(s)
+            const isBeingEdited = editingId === s.id
             return (
               <div key={s.id} className="card" style={{
                 padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem',
                 opacity: s.active ? 1 : 0.55, flexWrap: 'wrap',
+                outline: isBeingEdited ? '1.5px solid var(--color-primary)' : 'none',
               }}>
                 <div style={{ flex: 1, minWidth: 180 }}>
                   <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{s.name}</div>
@@ -259,6 +351,14 @@ export default function SIPManager({ onEntryCreated }: Props) {
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 4 }}>
+                  <button
+                    className="btn btn-ghost btn-icon btn-sm"
+                    onClick={() => isBeingEdited ? closeForm() : openEdit(s)}
+                    title={isBeingEdited ? 'Cancel edit' : 'Edit'}
+                    style={{ color: isBeingEdited ? 'var(--color-primary)' : undefined }}
+                  >
+                    {isBeingEdited ? <X size={14} /> : <Pencil size={14} />}
+                  </button>
                   <button className="btn btn-ghost btn-icon btn-sm" onClick={() => toggleActive(s)} title={s.active ? 'Pause' : 'Activate'}>
                     {s.active ? <Pause size={14} /> : <Play size={14} style={{ color: 'var(--color-success)' }} />}
                   </button>

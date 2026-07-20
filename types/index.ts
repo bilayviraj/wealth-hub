@@ -1,6 +1,7 @@
 // WealthHub Shared TypeScript Types
 
 export type InvestmentType = 'FD' | 'MF' | 'STOCKS' | 'GOLD' | 'BONDS' | 'POLICY' | 'PPF' | 'CASH'
+export type TransactionType = 'BUY' | 'SELL'
 export type LoanType = 'HOME' | 'GOLD' | 'PERSONAL' | 'CAR' | 'OTHER'
 export type ScheduleFrequency = 'DAILY' | 'WEEKLY' | 'FIFTEEN_DAYS' | 'MONTHLY' | 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY'
 
@@ -11,6 +12,7 @@ export interface InvestmentEntry {
   date: string
   name: string
   type: InvestmentType
+  txnType: TransactionType
   account?: string | null   // Platform: Zerodha Coin, Zerodha, Upstox, ICICI, LIC
   owner?: string | null     // Person: Viraj, Prachi, Joint
   amount: number
