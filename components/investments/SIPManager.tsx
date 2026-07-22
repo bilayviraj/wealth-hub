@@ -54,10 +54,11 @@ export default function SIPManager({ onEntryCreated }: Props) {
   const [showForm, setShowForm]   = useState(false)
   // null = creating new; string = editing that schedule id
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [runningId, setRunningId] = useState<string | null>(null)
 
   const defaultValues: Partial<FormData> = {
     type: 'MF', frequency: 'MONTHLY', dayOfMonth: 10,
-    owner: 'Viraj', startDate: formatDateInput(new Date()),
+    owner: 'Viraj', account: 'Zerodha Coin', startDate: formatDateInput(new Date()),
   }
 
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -74,7 +75,12 @@ export default function SIPManager({ onEntryCreated }: Props) {
   const fetch_ = useCallback(async () => {
     setLoading(true)
     try {
-      const r = await fetch('/api/sip'); setSchedules(await r.json())
+      const r = await fetch('/api/sip')
+      const data: RecurringSchedule[] = await r.json()
+      if (Array.isArray(data)) {
+        data.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }))
+        setSchedules(data)
+      }
     } catch { toast.error('Failed to load schedules') } finally { setLoading(false) }
   }, [])
 
@@ -176,6 +182,20 @@ export default function SIPManager({ onEntryCreated }: Props) {
         toast.success('No schedules due today')
       }
     } catch { toast.error('Failed to run') }
+  }
+
+  const runOne = async (s: RecurringSchedule) => {
+    if (!confirm(`Force-run "${s.name}" now and create an entry?`)) return
+    setRunningId(s.id)
+    try {
+      const r = await fetch(`/api/sip/${s.id}/run`, { method: 'POST' })
+      const data = await r.json()
+      if (!r.ok) throw new Error(data.error)
+      toast.success(`Entry created for ${s.name}`)
+      onEntryCreated?.()
+      fetch_()
+    } catch { toast.error('Failed to run schedule') }
+    finally { setRunningId(null) }
   }
 
   const del = async (id: string) => {
@@ -358,6 +378,17 @@ export default function SIPManager({ onEntryCreated }: Props) {
                     style={{ color: isBeingEdited ? 'var(--color-primary)' : undefined }}
                   >
                     {isBeingEdited ? <X size={14} /> : <Pencil size={14} />}
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-icon btn-sm"
+                    onClick={() => runOne(s)}
+                    title="Run this schedule now"
+                    disabled={runningId === s.id}
+                    style={{ color: 'var(--color-success)' }}
+                  >
+                    {runningId === s.id
+                      ? <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>...</span>
+                      : <Play size={13} />}
                   </button>
                   <button className="btn btn-ghost btn-icon btn-sm" onClick={() => toggleActive(s)} title={s.active ? 'Pause' : 'Activate'}>
                     {s.active ? <Pause size={14} /> : <Play size={14} style={{ color: 'var(--color-success)' }} />}

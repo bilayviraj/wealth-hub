@@ -774,6 +774,8 @@ a {
 .ag-theme-wealthhub {
   --ag-background-color: transparent;
   --ag-header-background-color: var(--bg-elevated);
+  --ag-control-panel-background-color: var(--bg-elevated);
+  --ag-subheader-background-color: var(--bg-elevated);
   --ag-row-hover-color: rgba(255, 255, 255, 0.05);
   --ag-selected-row-background-color: rgba(99, 102, 241, 0.12);
   --ag-border-color: rgba(255, 255, 255, 0.07);
@@ -791,6 +793,30 @@ a {
   --ag-checkbox-checked-color: #6366f1;
   --ag-range-selection-border-color: #6366f1;
 }
+
+/* Fix AG Grid filter popups and menus having transparent background */
+.ag-theme-wealthhub .ag-popup,
+.ag-theme-wealthhub .ag-popup-child,
+.ag-theme-wealthhub .ag-menu,
+.ag-theme-wealthhub .ag-filter,
+.ag-theme-wealthhub .ag-filter-wrapper,
+.ag-theme-wealthhub .ag-panel,
+.ag-theme-wealthhub .ag-column-drop-cell,
+.ag-popup-child,
+.ag-popup-child .ag-filter,
+.ag-menu,
+.ag-filter-toolpanel {
+  background-color: #1c2333 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6) !important;
+  border-radius: 8px !important;
+}
+
+.ag-popup-child {
+  background-color: #1c2333 !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
 
 .ag-theme-wealthhub .ag-root-wrapper {
   border: 1px solid var(--glass-border);
@@ -812,6 +838,7 @@ a {
 .ag-theme-wealthhub .ag-row {
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
+
 
 /* ─── Animations ─────────────────────────────────────────────────────────────── */
 @keyframes fadeIn {

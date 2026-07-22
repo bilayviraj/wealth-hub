@@ -21,7 +21,7 @@ const ScheduleSchema = z.object({
 export async function GET() {
   try {
     const schedules = await prisma.recurringSchedule.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { name: 'asc' },
     })
     return Response.json(schedules)
   } catch {
